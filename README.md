@@ -1,11 +1,10 @@
 # LSFB-25 first results 
 
-This repository contains utils script for manipulating the LSFB-25 dataset easily. This readme list all the available function for using the LSFB datast
+This repository contains the code of various experiments performed to assess the performance of various deep learning architecture and machine learning models for sign language recognition.
 
 
-## TODO 
-
-
-- Load dataset in DF (train et test)
-- Split video in frames (with and without padding)
-- Simple data loader examples
+## Models
+- **CNN + RNN** : Model computing the VGG16 embedding for each frame of the video and feeding them to a RNN networks in order to classify signs
+- **C3D** : 3D convulition model for video recogniton
+- **Two-Stream networks** : TODO
+- **Visual Bags of Words for Video** : TODO
