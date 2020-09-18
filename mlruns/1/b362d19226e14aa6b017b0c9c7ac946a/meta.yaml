@@ -1,0 +1,15 @@
+artifact_uri: file:///home/jeromefink/Documents/unamur/signLanguage/Code/LSFB-Dataset-tools/mlruns/1/b362d19226e14aa6b017b0c9c7ac946a/artifacts
+end_time: 1599602292212
+entry_point_name: ''
+experiment_id: '1'
+lifecycle_stage: deleted
+name: ''
+run_id: b362d19226e14aa6b017b0c9c7ac946a
+run_uuid: b362d19226e14aa6b017b0c9c7ac946a
+source_name: ''
+source_type: 4
+source_version: ''
+start_time: 1599602287427
+status: 4
+tags: []
+user_id: jeromefink

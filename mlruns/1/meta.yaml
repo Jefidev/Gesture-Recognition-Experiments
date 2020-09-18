@@ -1,0 +1,4 @@
+artifact_location: file:///home/jeromefink/Documents/unamur/signLanguage/Code/LSFB-Dataset-tools/mlruns/1
+experiment_id: '1'
+lifecycle_stage: active
+name: ConvNet + GRU
