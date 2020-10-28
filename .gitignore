@@ -1,2 +1,5 @@
-./mlruns
+mlruns
+*.pyc
+__pycache__
 models/rgb_imagenet.pt
+models/__pycache__/VideoRNN.cpython-38.pyc
