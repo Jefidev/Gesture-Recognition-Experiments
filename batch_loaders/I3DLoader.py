@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 
-class C3DLoader(BaseLoader):
+class I3DLoader(BaseLoader):
     def __init__(
         self,
         data: pd.DataFrame,
@@ -18,10 +18,11 @@ class C3DLoader(BaseLoader):
         """
         frame_size (height, width)
         """
-        super(C3DLoader, self).__init__(data, batch_size, frame_size, shuffle_data)
+        super(I3DLoader, self).__init__(data, batch_size, frame_size, shuffle_data)
         self.nbr_frames = nbr_frames
+        self.nbr_class = len(self.get_label_mapping())
 
-    # C3D expected input : (Batch-size, C, depth, H, W)
+    # I3D expected input : (B x C x T x H x W)
     def get_batch(self, offset: int):
         start = offset * self.batch_size
         end = start + self.batch_size
@@ -32,21 +33,31 @@ class C3DLoader(BaseLoader):
         X = torch.zeros(
             self.batch_size, 3, self.nbr_frames, self.resolution[0], self.resolution[1]
         )
-        y = torch.zeros((self.batch_size), dtype=torch.long)
+
+        # Adding one class for the frame without labels (the padding)
+        y = torch.zeros(
+            (self.batch_size, self.nbr_class + 1, self.nbr_frames), dtype=torch.float
+        )
 
         # Fill
         batch_elem_idx = 0
         for index, row in batch.iterrows():
             # Reading video, should get and resize frame
+
             capture = cv2.VideoCapture(row["path"])
             frames = self.extract_frames(capture)
 
-            y[batch_elem_idx] = row["label_nbr"]
-
+            nb_frame = 0
             for f_idx, frame in enumerate(frames):
                 X[batch_elem_idx][0][f_idx] = torch.from_numpy(frame[0])
                 X[batch_elem_idx][1][f_idx] = torch.from_numpy(frame[1])
                 X[batch_elem_idx][2][f_idx] = torch.from_numpy(frame[2])
+
+                y[batch_elem_idx, row["label_nbr"] + 1, f_idx] = 1
+
+            ## Adding the label for the padded frames
+            for idx in range(len(frames), self.nbr_frames):
+                y[batch_elem_idx, 0, idx] = 1
 
             batch_elem_idx += 1
 

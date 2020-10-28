@@ -51,19 +51,29 @@ print(net)
 
 # Chosing optimizer and loss function
 criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(net.parameters(), lr=params["learning_rate"])
+optimizer = torch.optim.SGD(
+    net.parameters(), lr=params["learning_rate"], momentum=0.9, weight_decay=0.0000001
+)
+lr_sched = torch.optim.lr_scheduler.MultiStepLR(optimizer, [300, 1000])
 
 # Training loop
 mlflow.set_experiment("ConvNet + GRU")
 
-with mlflow.start_run(run_name="LSFB-25 bidirectionnal LSTM"):
+with mlflow.start_run(run_name="Adding scheduler"):
     mlflow.log_params(params)
 
     for iter in range(1, epoch + 1):
         print(f"{iter}/{epoch}\n")
 
         train_loss, train_acc = train_model(
-            net, criterion, optimizer, loader, device, batch_size, params["cumulation"]
+            net,
+            criterion,
+            optimizer,
+            lr_sched,
+            loader,
+            device,
+            batch_size,
+            params["cumulation"],
         )
         print(f"train_loss : {train_loss}  train_acc : {train_acc}")
         mlflow.log_metric("train_loss", train_loss)

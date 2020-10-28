@@ -1,7 +1,9 @@
 import torch
 
 
-def train_model(model, criterion, optimizer, loader, device, batch_size, cumulation=1):
+def train_model(
+    model, criterion, optimizer, lr_scheduler, loader, device, batch_size, cumulation=1
+):
 
     epoch_loss = 0.0
     accuracy = 0
@@ -27,6 +29,7 @@ def train_model(model, criterion, optimizer, loader, device, batch_size, cumulat
         if batch_idx % cumulation == 0:
             optimizer.step()
             optimizer.zero_grad()
+            lr_scheduler.step()
 
         accuracy += torch.sum(preds == y.data)
 

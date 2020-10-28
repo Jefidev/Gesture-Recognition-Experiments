@@ -54,7 +54,10 @@ print(net)
 
 # Chosing optimizer and loss function
 criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(net.parameters(), lr=params["lr"])
+optimizer = torch.optim.SGD(
+    net.parameters(), lr=params["lr"], momentum=0.9, weight_decay=0.0000001
+)
+lr_sched = torch.optim.lr_scheduler.MultiStepLR(optimizer, [300, 1000])
 
 
 # Training loop
@@ -71,6 +74,7 @@ with mlflow.start_run(run_name=params["dataset"]):
             net,
             criterion,
             optimizer,
+            lr_sched,
             loader,
             device,
             params["batch_size"],

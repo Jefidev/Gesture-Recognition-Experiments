@@ -1,0 +1,2 @@
+./mlruns
+models/rgb_imagenet.pt
