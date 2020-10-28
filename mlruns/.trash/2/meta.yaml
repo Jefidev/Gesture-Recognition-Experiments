@@ -1,4 +1,0 @@
-artifact_location: file:///home/jeromefink/Documents/unamur/signLanguage/Code/LSFB-Dataset-tools/mlruns/2
-experiment_id: '2'
-lifecycle_stage: active
-name: ConvNet + GRU - unfrozen cnn layer
