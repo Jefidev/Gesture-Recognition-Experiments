@@ -12,6 +12,8 @@ torch = "*"
 torchvision = "*"
 sklearn = "*"
 opencv-python = "*"
+pillow-simd = "*"
+scikit-image = "*"
 
 [requires]
 python_version = "3.8"

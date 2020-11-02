@@ -3,3 +3,6 @@ mlruns
 __pycache__
 models/rgb_imagenet.pt
 models/__pycache__/VideoRNN.cpython-38.pyc
+models/rgb_charades.pt
+20201102-092952/
+results/
