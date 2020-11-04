@@ -100,6 +100,8 @@ class LsfbDataset(Dataset):
 
         # Select
         while success:
+            b, g, r = cv2.split(frame)
+            frame = cv2.merge([r, g, b])
             frame_array.append(frame / 255)
             success, frame = capture.read()
 

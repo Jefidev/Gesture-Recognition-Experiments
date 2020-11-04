@@ -13,11 +13,12 @@ from transforms.video_transforms import (
 from torch.utils.data import DataLoader
 
 path = "./mock-data"
+data = load_lsfb_dataset(path)
 
 composed = Compose(
     [ResizeVideo(256, interpolation="bilinear"), CenterCropVideo((224, 224))]
 )
-data = load_lsfb_dataset(path)
+
 lsfb_dataset = LsfbDataset(
     data, 30, sequence_label=True, transforms=composed, one_hot=True
 )
@@ -33,6 +34,8 @@ def write_video(video):
 
     for frame in video:
         image = frame * 255
+        r, g, b = cv2.split(image)
+        image = cv2.merge([b, g, r])
         out.write(image.astype(np.uint8))
     out.release()
 
@@ -43,7 +46,7 @@ dataloader = DataLoader(lsfb_dataset, 4, shuffle=True)
 
 for i in range(len(lsfb_dataset)):
     sequence = lsfb_dataset[i]
-    # print(sequence[1])
+    print(sequence[0])
 
     # write_video(sequence[0])
 
