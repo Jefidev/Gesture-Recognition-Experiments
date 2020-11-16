@@ -167,21 +167,6 @@ while steps < max_steps:  # for epoch in range(num_epochs):
             # upsample to input size
             per_frame_logits = F.upsample(per_frame_logits, t, mode="linear")
 
-            # compute localization loss
-            """
-            loc_loss = F.binary_cross_entropy_with_logits(per_frame_logits, labels)
-            tot_loc_loss += loc_loss.item()
-            """
-
-            # compute classification loss (with max-pooling along time B x C x T)
-            """
-            cls_loss = F.binary_cross_entropy_with_logits(
-                torch.max(per_frame_logits, dim=2)[0], torch.max(labels, dim=2)[0]
-            )
-            tot_cls_loss += cls_loss.item()
-            """
-            # loss = (0.5 * loc_loss + 0.5 * cls_loss) / num_steps_per_update
-
             tmp = torch.max(labels, dim=2)[0]
             loss = (
                 criterion(
