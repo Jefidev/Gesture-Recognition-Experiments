@@ -3,6 +3,7 @@ from typing import Tuple, Dict
 import torch
 import cv2
 import numpy as np
+import random
 
 
 class LsfbDataset(Dataset):
@@ -12,7 +13,7 @@ class LsfbDataset(Dataset):
         self,
         data,
         nbr_frames,
-        padding=True,
+        padding="",
         sequence_label=False,
         one_hot=False,
         transforms=None,
@@ -20,7 +21,8 @@ class LsfbDataset(Dataset):
         """
         data : A pandas dataframe containing ...
         nbr_frames : Number of frames to sample per video
-        padding : Ensure all video have same lenght by padding the shorter one.
+        padding : Ensure all video have same lenght. To value possible. 
+                  zero for zero padding or loop to loop the video.
         sequence_label : Return one label per video frame
         transforms : transformations to apply to the frames.
         """
@@ -47,17 +49,23 @@ class LsfbDataset(Dataset):
         video_len = len(video)
         y = item["label_nbr"]
 
-        if self.padding and len(video) < self.nbr_frames:
-            video = self._pad_sequence(video, self.nbr_frames)
+        if self.padding != "" and len(video) < self.nbr_frames:
+            if self.padding == "zero":
+                video = self._pad_sequence(video, self.nbr_frames)
+            else:
+                video = self._loop_sequence(video, self.nbr_frames)
 
         if self.sequence_label:
             # Retrieve the class number associated to the padding
-            pad_nbr = list(self.labels.keys())[
-                list(self.labels.values()).index("SEQUENCE-PADDING")
-            ]
 
-            pad_len = len(video) - video_len
-            y = np.array([y] * video_len + [pad_nbr] * pad_len)
+            if self.padding == "zero":
+                pad_nbr = list(self.labels.keys())[
+                    list(self.labels.values()).index("SEQUENCE-PADDING")
+                ]
+                pad_len = len(video) - video_len
+                y = np.array([y] * video_len + [pad_nbr] * pad_len)
+            elif self.padding == "loop":
+                y = np.array([y] * len(video))
 
         if self.one_hot:
             nbr_labels = len(self.labels)
@@ -87,7 +95,7 @@ class LsfbDataset(Dataset):
 
             mapping[class_number] = label
 
-        if self.padding and self.sequence_label:
+        if self.padding == "zero" and self.sequence_label:
             nbr_class = len(mapping)
             mapping[nbr_class] = "SEQUENCE-PADDING"
 
@@ -99,23 +107,27 @@ class LsfbDataset(Dataset):
         success, frame = capture.read()
 
         # Select
+        frame_count = 0
         while success:
+            frame_count += 1
+
             b, g, r = cv2.split(frame)
             frame = cv2.merge([r, g, b])
             frame_array.append(frame / 255)
             success, frame = capture.read()
 
+            # Avoid memory saturation by stopping reading of
+            # video after 2 times de max length expected.
+            if frame_count > (self.nbr_frames * 2):
+                break
+
         if len(frame_array) > self.nbr_frames:
-            # List envenly spaced indice
-            resized_frame_array = []
-            idx = np.round(
-                np.linspace(0, len(frame_array) - 1, self.nbr_frames)
-            ).astype(int)
+            diff = len(frame_array) - self.nbr_frames
 
-            for i in idx:
-                resized_frame_array.append(frame_array[i])
+            start = random.randint(0, diff)
+            end = start + self.nbr_frames
 
-            frame_array = resized_frame_array
+            frame_array = frame_array[start:end]
 
         return np.array(frame_array)
 
@@ -127,3 +139,17 @@ class LsfbDataset(Dataset):
         zero_arr[: shape[0]] = sequence
 
         return zero_arr
+
+    def _loop_sequence(self, sequence, length):
+        shape = sequence.shape
+        new_shape = (length, shape[1], shape[2], shape[3])
+        zero_arr = np.zeros(new_shape)
+
+        video_len = len(sequence)
+
+        for i in range(length):
+            vid_idx = i % video_len
+            zero_arr[i] = sequence[vid_idx]
+
+        return zero_arr
+

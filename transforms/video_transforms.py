@@ -10,6 +10,15 @@ import torch
 import utils.video_utils as F
 
 
+class I3DPixelsValue(object):
+    """
+    Scale the pixel value between -1 and 1 insted of 0 and 1 (required for I3D)
+    """
+
+    def __call__(self, sample):
+        return sample * 2 - 1
+
+
 class ChangeVideoShape(object):
     """
     Expect to receive a ndarray of chape (Time, Height, Width, Channel) which is the default format

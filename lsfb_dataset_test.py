@@ -9,18 +9,23 @@ from transforms.video_transforms import (
     ResizeVideo,
     RandomCropVideo,
     CenterCropVideo,
+    I3DPixelsValue,
 )
 from torch.utils.data import DataLoader
 
-path = "./mock-data"
+path = "/home/jeromefink/Documents/unamur/signLanguage/Data/MS-ASL/MSASL"
 data = load_lsfb_dataset(path)
 
 composed = Compose(
-    [ResizeVideo(256, interpolation="bilinear"), CenterCropVideo((224, 224))]
+    [
+        ResizeVideo(256, interpolation="bilinear"),
+        CenterCropVideo((224, 224)),
+        I3DPixelsValue(),
+    ]
 )
 
 lsfb_dataset = LsfbDataset(
-    data, 30, sequence_label=True, transforms=composed, one_hot=True
+    data, 60, sequence_label=True, transforms=composed, one_hot=True, padding="loop",
 )
 
 
@@ -40,23 +45,8 @@ def write_video(video):
     out.release()
 
 
-print(lsfb_dataset._get_label_mapping())
-
-dataloader = DataLoader(lsfb_dataset, 4, shuffle=True)
-
+print(lsfb_dataset.labels)
 for i in range(len(lsfb_dataset)):
     sequence = lsfb_dataset[i]
     print(sequence[0])
-
-    # write_video(sequence[0])
-
-    if i > 5:
-        break
-
-
-for i, val in enumerate(dataloader):
-    input, label = val
-    print(input.size())
-    print(label.size())
-    print(i)
 

@@ -6,3 +6,4 @@ models/__pycache__/VideoRNN.cpython-38.pyc
 models/rgb_charades.pt
 20201102-092952/
 results/
+checkpoints
