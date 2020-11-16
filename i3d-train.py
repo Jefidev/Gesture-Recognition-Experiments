@@ -30,16 +30,28 @@ import numpy as np
 from models.pytorch_i3d import InceptionI3d
 from utils.lsfb_dataset_loader import load_lsfb_dataset
 from datasets.lsfb_dataset import LsfbDataset
+import mlflow
 
 
 init_lr = 0.01
 max_steps = 64e3
 mode = "rgb_msasl"
 batch_size = 4
-save_model = ""
-
-
+test_batch_size = 2
+save_model = "./checkpoints"
+num_steps_per_update = 64  # accum gradient
 path = "/home/jeromefink/Documents/unamur/signLanguage/Data/MS-ASL/MSASL"
+nbr_frames = 64
+experiment_name = "I3D RGB MSASL"
+
+params_ml_flow = {
+    "init_lr": init_lr,
+    "initial_weights": mode,
+    "batch_size": batch_size,
+    "dataset": path,
+    "nbr_frames": nbr_frames,
+}
+
 # setup dataset
 # Transformations for train images
 composed_train = transforms.Compose(
@@ -68,7 +80,7 @@ test = data[data["subset"] == "test"]
 
 train_dataset = LsfbDataset(
     train,
-    64,
+    nbr_frames,
     sequence_label=True,
     transforms=composed_train,
     one_hot=True,
@@ -77,7 +89,7 @@ train_dataset = LsfbDataset(
 
 test_dataset = LsfbDataset(
     test,
-    64,
+    nbr_frames,
     sequence_label=True,
     transforms=compose_test,
     one_hot=True,
@@ -89,7 +101,7 @@ dataloader = torch.utils.data.DataLoader(
 )
 
 val_dataloader = torch.utils.data.DataLoader(
-    test_dataset, batch_size=2, shuffle=True, num_workers=2,
+    test_dataset, batch_size=test_batch_size, shuffle=True, num_workers=2,
 )
 
 dataloaders = {"train": dataloader, "val": val_dataloader}
@@ -119,107 +131,134 @@ else:
 i3d.cuda()
 i3d = nn.DataParallel(i3d)
 
-lr = 0.01
-optimizer = optim.SGD(i3d.parameters(), lr=lr, momentum=0.9, weight_decay=0.0000001)
+optimizer = optim.SGD(
+    i3d.parameters(), lr=init_lr, momentum=0.9, weight_decay=0.0000001
+)
 lr_sched = optim.lr_scheduler.MultiStepLR(optimizer, [300, 1000])
 criterion = nn.CrossEntropyLoss()
 
-num_steps_per_update = 64  # accum gradient
-steps = 0
-# train it
-while steps < max_steps:  # for epoch in range(num_epochs):
-    print("Step {}/{}".format(steps, max_steps))
-    print("-" * 10)
 
-    # Each epoch has a training and validation phase
-    for phase in ["train", "val"]:
-        if phase == "train":
-            i3d.train(True)
-        else:
-            i3d.train(False)  # Set model to evaluate mode
+mlflow.set_experiment("I3D")
 
-        tot_loss = 0.0
-        tot_loc_loss = 0.0
-        tot_cls_loss = 0.0
-        accuracy = 0.0
-        num_iter = 0
-        counter = 0
+with mlflow.start_run(run_name=experiment_name):
+    mlflow.log_params(params_ml_flow)
 
-        # Iterate over data.
-        size = len(dataloaders[phase])
-        for data in dataloaders[phase]:
-            num_iter += 1
-            counter += 1
-            print(f"{counter}/{size}")
+    steps = 0
+    while steps < max_steps:  # for epoch in range(num_epochs):
+        print("Step {}/{}".format(steps, max_steps))
+        print("-" * 10)
 
-            # get the inputs
-            inputs, labels = data
-
-            inputs = inputs.type(torch.FloatTensor)
-            labels = labels.type(torch.FloatTensor)
-
-            # wrap them in Variable
-            inputs = Variable(inputs.cuda())
-            t = inputs.size(2)
-            labels = Variable(labels.cuda())
-
-            per_frame_logits = i3d(inputs)
-            # upsample to input size
-            per_frame_logits = F.upsample(per_frame_logits, t, mode="linear")
-
-            tmp = torch.max(labels, dim=2)[0]
-            loss = (
-                criterion(
-                    torch.max(per_frame_logits, dim=2)[0], torch.max(tmp, dim=1)[1]
-                )
-                / num_steps_per_update
-            )
-            tot_loss += loss.item()
-
+        # Each epoch has a training and validation phase
+        for phase in ["train", "val"]:
             if phase == "train":
-                loss.backward()
+                i3d.train(True)
+            else:
+                i3d.train(False)  # Set model to evaluate mode
 
-            tmp = torch.max(per_frame_logits, dim=2)[0]
-            majority_pred = torch.max(tmp, dim=1)[1]
+            tot_loss = 0.0
+            tot_loc_loss = 0.0
+            tot_cls_loss = 0.0
+            accuracy = 0.0
+            num_iter = 0
+            counter = 0
 
-            tmp = torch.max(labels, dim=2)[0]
-            majority_truth = torch.max(tmp, dim=1)[1]
+            epoch_loss = 0
+            epoch_acc = 0
 
-            accuracy += torch.sum(majority_pred == majority_truth).item()
+            # Iterate over data.
+            size = len(dataloaders[phase])
+            for data in dataloaders[phase]:
+                num_iter += 1
+                counter += 1
+                print(f"{counter}/{size}")
 
-            if num_iter == num_steps_per_update and phase == "train":
-                steps += 1
+                # get the inputs
+                inputs, labels = data
+
+                inputs = inputs.type(torch.FloatTensor)
+                labels = labels.type(torch.FloatTensor)
+
+                # wrap them in Variable
+                inputs = Variable(inputs.cuda())
+                t = inputs.size(2)
+                labels = Variable(labels.cuda())
+
+                per_frame_logits = i3d(inputs)
+                # upsample to input size
+                per_frame_logits = F.upsample(per_frame_logits, t, mode="linear")
+
+                tmp = torch.max(labels, dim=2)[0]
+                loss = (
+                    criterion(
+                        torch.max(per_frame_logits, dim=2)[0], torch.max(tmp, dim=1)[1]
+                    )
+                    / num_steps_per_update
+                )
+                tot_loss += loss.item()
+                epoch_loss += loss.item()
+
+                if phase == "train":
+                    loss.backward()
+
+                tmp = torch.max(per_frame_logits, dim=2)[0]
+                majority_pred = torch.max(tmp, dim=1)[1]
+
+                tmp = torch.max(labels, dim=2)[0]
+                majority_truth = torch.max(tmp, dim=1)[1]
+
+                accuracy += torch.sum(majority_pred == majority_truth).item()
+                epoch_acc += torch.sum(majority_pred == majority_truth).item()
+
+                if num_iter == num_steps_per_update and phase == "train":
+                    steps += 1
+                    num_iter = 0
+                    optimizer.step()
+                    optimizer.zero_grad()
+                    lr_sched.step()
+                    if steps % 2 == 0:
+                        print(
+                            "{} Loss: {:.4f}  Accuracy: {:.4f}".format(
+                                phase,
+                                tot_loss / 2,
+                                accuracy / (2 * num_steps_per_update * batch_size),
+                            )
+                        )
+                        # save model
+
+                        torch.save(
+                            i3d.module.state_dict(), "MSASL.pt",
+                        )
+
+                        accuracy = tot_loss = 0.0
+
+            if phase == "val":
+                tot_loss = (tot_loss * num_steps_per_update) / num_iter
+                accuracy = accuracy / (num_iter * test_batch_size)
+
+                print(
+                    "{}  Loss: {:.4f}  Accuracy: {:.4f}".format(
+                        phase, tot_loss, accuracy
+                    )
+                )
+
+                mlflow.log_metric("val_loss", tot_loss)
+                mlflow.log_metric("val_acc", accuracy)
+
+            elif phase == "train":
+                epoch_loss = (epoch_loss * num_steps_per_update) / size
+                epoch_acc = epoch_acc / (size * batch_size)
+
+                print(
+                    "{}  Loss: {:.4f}  Accuracy: {:.4f}".format(
+                        phase, epoch_loss, epoch_acc
+                    )
+                )
+
+                mlflow.log_metric("train_loss", epoch_loss)
+                mlflow.log_metric("train_acc", epoch_acc)
+
                 num_iter = 0
                 optimizer.step()
                 optimizer.zero_grad()
                 lr_sched.step()
-                if steps % 2 == 0:
-                    print(
-                        "{} Loss: {:.4f}  Accuracy: {:.4f}".format(
-                            phase,
-                            tot_loss / 2,
-                            accuracy / (2 * num_steps_per_update * batch_size),
-                        )
-                    )
-                    # save model
-
-                    torch.save(
-                        i3d.module.state_dict(), "MSASL.pt",
-                    )
-
-                    accuracy = tot_loss = 0.0
-
-        if phase == "val":
-            print(
-                "{}  Loss: {:.4f}  Accuracy: {:.4f}".format(
-                    phase,
-                    (tot_loss * num_steps_per_update) / num_iter,
-                    accuracy / (num_iter * batch_size),
-                )
-            )
-        elif phase == "train":
-            num_iter = 0
-            optimizer.step()
-            optimizer.zero_grad()
-            lr_sched.step()
 
