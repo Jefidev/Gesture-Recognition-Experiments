@@ -17,6 +17,7 @@ class LsfbDataset(Dataset):
         sequence_label=False,
         one_hot=False,
         transforms=None,
+        labels=None,
     ):
         """
         data : A pandas dataframe containing ...
@@ -33,7 +34,10 @@ class LsfbDataset(Dataset):
         self.transforms = transforms
         self.one_hot = one_hot
 
-        self.labels = self._get_label_mapping()
+        if labels == None:
+            self.labels = self._get_label_mapping()
+        else:
+            self.labels = labels
 
     def __len__(self):
         return len(self.data)

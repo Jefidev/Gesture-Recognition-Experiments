@@ -1,4 +1,4 @@
-# LSFB-25 first results 
+# LSFB-410 first results 
 
 This repository contains the code of various experiments performed to assess the performance of various deep learning architecture and machine learning models for sign language recognition.
 
@@ -11,6 +11,4 @@ This repository contains the code of various experiments performed to assess the
 - **Visual Bags of Words for Video** : Visual Bag of Words
 
 
-## Model to try
-
-state of the art for action recognition on UCF-101
+# Results
