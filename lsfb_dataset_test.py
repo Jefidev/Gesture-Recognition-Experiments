@@ -10,28 +10,39 @@ from transforms.video_transforms import (
     RandomCropVideo,
     CenterCropVideo,
     I3DPixelsValue,
+    RandomTrimVideo,
+    PadVideo,
 )
 from torch.utils.data import DataLoader
+import pandas as pd
 
-path = "/home/jeromefink/Documents/unamur/signLanguage/Data/MS-ASL/MSASL"
-data = load_lsfb_dataset(path)
+
+path = "./test-video"
+
+d = {
+    "label": ["U"],
+    "label_nbr": [0],
+    "path": ["./test-video/t1.mp4"],
+    "subset": ["test"],
+}
+data = pd.DataFrame(data=d)
 
 composed = Compose(
     [
-        ResizeVideo(256, interpolation="bilinear"),
-        CenterCropVideo((224, 224)),
-        I3DPixelsValue(),
+        RandomTrimVideo(48),
+        PadVideo(48),
+        ResizeVideo(280, interpolation="bilinear"),
+        RandomCropVideo((224, 224)),
     ]
 )
 
 lsfb_dataset = LsfbDataset(
-    data, 60, sequence_label=True, transforms=composed, one_hot=True, padding="loop",
+    data, sequence_label=True, transforms=composed, one_hot=True, padding="loop",
 )
 
 
-def write_video(video):
-    i = random.randint(1, 10000)
-    name = f"{path}/{i}.avi"
+def write_video(video, idx):
+    name = f"{path}/randomcrop2_{idx}.avi"
     fourc = cv2.VideoWriter_fourcc(*"DIVX")
 
     s = (video.shape[2], video.shape[1])
@@ -45,8 +56,8 @@ def write_video(video):
     out.release()
 
 
-print(lsfb_dataset.labels)
-for i in range(len(lsfb_dataset)):
-    sequence = lsfb_dataset[i]
-    print(sequence[0])
+for j in range(0, 5):
+    for i in range(len(lsfb_dataset)):
+        sequence = lsfb_dataset[i]
+        write_video(sequence[0], j)
 

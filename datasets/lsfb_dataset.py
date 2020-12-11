@@ -12,8 +12,7 @@ class LsfbDataset(Dataset):
     def __init__(
         self,
         data,
-        nbr_frames,
-        padding="",
+        padding="loop",
         sequence_label=False,
         one_hot=False,
         transforms=None,
@@ -28,7 +27,6 @@ class LsfbDataset(Dataset):
         transforms : transformations to apply to the frames.
         """
         self.data = data
-        self.nbr_frames = nbr_frames
         self.padding = padding
         self.sequence_label = sequence_label
         self.transforms = transforms
@@ -51,23 +49,27 @@ class LsfbDataset(Dataset):
         capture = cv2.VideoCapture(item["path"])
         video = self.extract_frames(capture)
         video_len = len(video)
+
+        # Apply the transformations to the video :
+        if self.transforms:
+            video = self.transforms(video)
+
+        # If the video was trimmed and not padded
+        if len(video) < video_len:
+            video_len = len(video)
+
         y = item["label_nbr"]
 
-        if self.padding != "" and len(video) < self.nbr_frames:
-            if self.padding == "zero":
-                video = self._pad_sequence(video, self.nbr_frames)
-            else:
-                video = self._loop_sequence(video, self.nbr_frames)
-
         if self.sequence_label:
-            # Retrieve the class number associated to the padding
 
+            # Retrieve the class number associated to the padding
             if self.padding == "zero":
                 pad_nbr = list(self.labels.keys())[
                     list(self.labels.values()).index("SEQUENCE-PADDING")
                 ]
                 pad_len = len(video) - video_len
                 y = np.array([y] * video_len + [pad_nbr] * pad_len)
+
             elif self.padding == "loop":
                 y = np.array([y] * len(video))
 
@@ -78,13 +80,9 @@ class LsfbDataset(Dataset):
                 tmp[y] = 1
             else:
                 tmp = np.zeros((nbr_labels, len(video)))
-
                 for idx, label in enumerate(y):
                     tmp[label][idx] = 1
             y = tmp
-
-        if self.transforms:
-            video = self.transforms(video)
 
         return video, y
 
@@ -121,39 +119,8 @@ class LsfbDataset(Dataset):
             success, frame = capture.read()
 
             # Avoid memory saturation by stopping reading of
-            # video after 2 times de max length expected.
-            if frame_count > (self.nbr_frames * 2):
+            # video if it is > 150 frames (5sec)
+            if frame_count > 150:
                 break
 
-        if len(frame_array) > self.nbr_frames:
-            diff = len(frame_array) - self.nbr_frames
-
-            start = random.randint(0, diff)
-            end = start + self.nbr_frames
-
-            frame_array = frame_array[start:end]
-
         return np.array(frame_array)
-
-    def _pad_sequence(self, sequence, length):
-        shape = sequence.shape
-        new_shape = (length, shape[1], shape[2], shape[3])
-
-        zero_arr = np.zeros(new_shape)
-        zero_arr[: shape[0]] = sequence
-
-        return zero_arr
-
-    def _loop_sequence(self, sequence, length):
-        shape = sequence.shape
-        new_shape = (length, shape[1], shape[2], shape[3])
-        zero_arr = np.zeros(new_shape)
-
-        video_len = len(sequence)
-
-        for i in range(length):
-            vid_idx = i % video_len
-            zero_arr[i] = sequence[vid_idx]
-
-        return zero_arr
-

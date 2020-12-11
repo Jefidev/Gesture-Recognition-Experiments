@@ -1,7 +1,6 @@
 import os
 import json
 import pickle
-import json
 
 
 os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
@@ -14,6 +13,9 @@ from transforms.video_transforms import (
     RandomCropVideo,
     CenterCropVideo,
     I3DPixelsValue,
+    RandomTrimVideo,
+    TrimVideo,
+    PadVideo,
 )
 
 import torch
@@ -34,18 +36,18 @@ from datasets.lsfb_dataset import LsfbDataset
 import mlflow
 
 
-init_lr = 0.01
-max_steps = 50
-mode = "lsfb410"
+init_lr = 0.1
+max_steps = 100
+mode = "msasl"
 batch_size = 6
 test_batch_size = 2
-model_path = "./checkpoints/lsfb_410.pt"
+model_path = "./checkpoints/most_frequents_396.pt"
 cumulation = 64  # accum gradient
-path = "/home/jeromefink/Documents/unamur/signLanguage/Data/most_frequents_410"
+path = "/home/jeromefink/Documents/unamur/signLanguage/Data/most_frequents_396"
 nbr_frames = 48
-experiment_name = "I3D RGB LSFB-410"
-predictions_file = "./checkpoints/predictions_410.pkl"
-labels_file = "./checkpoints/labels_410.json"
+experiment_name = "I3D RGB 396"
+predictions_file = "./checkpoints/most_frequents_396.pkl"
+labels_file = "./checkpoints/most_frequents_396.json"
 
 params_ml_flow = {
     "init_lr": init_lr,
@@ -59,7 +61,9 @@ params_ml_flow = {
 # Transformations for train images
 composed_train = transforms.Compose(
     [
-        ResizeVideo(256, interpolation="linear"),
+        RandomTrimVideo(48),
+        PadVideo(48),
+        ResizeVideo(285, interpolation="linear"),
         RandomCropVideo((224, 224)),
         I3DPixelsValue(),
         ChangeVideoShape("CTHW"),
@@ -69,7 +73,9 @@ composed_train = transforms.Compose(
 # Transformation for test images
 compose_test = transforms.Compose(
     [
-        ResizeVideo(256, interpolation="linear"),
+        TrimVideo(48),
+        PadVideo(48),
+        ResizeVideo(285, interpolation="linear"),
         CenterCropVideo((224, 224)),
         I3DPixelsValue(),
         ChangeVideoShape("CTHW"),
@@ -127,7 +133,7 @@ if mode == "flow":
 elif mode == "rgb_msasl":
     i3d = InceptionI3d(100, in_channels=3)
     i3d.load_state_dict(torch.load("checkpoints/MSASL.pt"))
-    # i3d.replace_logits(nbr_class)
+    i3d.replace_logits(nbr_class)
     print("MSASL loaded")
 elif mode == "charades":
     i3d = InceptionI3d(157, in_channels=3)
@@ -146,12 +152,9 @@ else:
     print("RGB kinetic loaded")
 
 i3d.cuda()
-i3d = nn.DataParallel(i3d)
 
-optimizer = optim.SGD(
-    i3d.parameters(), lr=init_lr, momentum=0.9, weight_decay=0.0000001
-)
-lr_sched = optim.lr_scheduler.MultiStepLR(optimizer, [300, 1000])
+optimizer = optim.SGD(i3d.parameters(), lr=init_lr, momentum=0.9, weight_decay=0.01)
+lr_sched = optim.lr_scheduler.MultiStepLR(optimizer, [4000, 9000, 18000, 27000])
 criterion = nn.CrossEntropyLoss()
 
 

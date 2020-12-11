@@ -158,3 +158,77 @@ class CenterCropVideo(object):
 
         return np.array(cropped)
 
+
+class TrimVideo(object):
+    """Trim each video the same way. Waiting shape TCHW
+    """
+
+    def __init__(self, size, offset=None):
+        self.end = size
+        self.begin = 0
+
+        if self.offset != None:
+            self.begin = offset
+            self.end += offset
+
+    def __call__(self, clip):
+        resized = clip[self.beging : self.end]
+        return np.array(resized)
+
+
+class RandomTrimVideo(object):
+    """Trim randomly the video. Waiting shape TCHW
+    """
+
+    def __init__(self, size):
+        self.size = size
+
+    def __call__(self, clip):
+        resized = clip
+
+        if len(clip) > self.size:
+            diff = len(resized) - self.size
+
+            start = random.randint(0, diff)
+            end = start + self.size
+
+            resized = resized[start:end]
+
+        return np.array(resized)
+
+
+class PadVideo(object):
+    def __init__(self, size, loop=True):
+        self.size = size
+        self.loop = loop
+
+    def __call__(self, clip):
+        if self.loop:
+            resized = self._loop_sequence(clip, self.size)
+        else:
+            resized = self._pad_sequence(clip, self.size)
+
+        return np.array(resized)
+
+    def _pad_sequence(self, sequence, length):
+        shape = sequence.shape
+        new_shape = (length, shape[1], shape[2], shape[3])
+
+        zero_arr = np.zeros(new_shape)
+        zero_arr[: shape[0]] = sequence
+
+        return zero_arr
+
+    def _loop_sequence(self, sequence, length):
+        shape = sequence.shape
+        new_shape = (length, shape[1], shape[2], shape[3])
+        zero_arr = np.zeros(new_shape)
+
+        video_len = len(sequence)
+
+        for i in range(length):
+            vid_idx = i % video_len
+            zero_arr[i] = sequence[vid_idx]
+
+        return zero_arr
+
