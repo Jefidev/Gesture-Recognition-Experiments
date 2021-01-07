@@ -58,7 +58,7 @@ class LsfbDataset(Dataset):
         if len(video) < video_len:
             video_len = len(video)
 
-        y = item["label_nbr"]
+        y = int(item["label_nbr"])
 
         if self.sequence_label:
 

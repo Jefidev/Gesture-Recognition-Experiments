@@ -36,12 +36,12 @@ from datasets.lsfb_dataset import LsfbDataset
 import mlflow
 
 
-init_lr = 0.1
+init_lr = 0.5
 max_steps = 100
-mode = "msasl"
+mode = "rgb_kinetic"
 batch_size = 6
 test_batch_size = 2
-model_path = "./checkpoints/most_frequents_396.pt"
+model_path = "./checkpoints/most_frequents_396pt"
 cumulation = 64  # accum gradient
 path = "/home/jeromefink/Documents/unamur/signLanguage/Data/most_frequents_396"
 nbr_frames = 48
@@ -61,9 +61,9 @@ params_ml_flow = {
 # Transformations for train images
 composed_train = transforms.Compose(
     [
-        RandomTrimVideo(48),
-        PadVideo(48),
-        ResizeVideo(285, interpolation="linear"),
+        RandomTrimVideo(nbr_frames),
+        PadVideo(nbr_frames),
+        ResizeVideo(270, interpolation="linear"),
         RandomCropVideo((224, 224)),
         I3DPixelsValue(),
         ChangeVideoShape("CTHW"),
@@ -73,9 +73,9 @@ composed_train = transforms.Compose(
 # Transformation for test images
 compose_test = transforms.Compose(
     [
-        TrimVideo(48),
-        PadVideo(48),
-        ResizeVideo(285, interpolation="linear"),
+        TrimVideo(nbr_frames),
+        PadVideo(nbr_frames),
+        ResizeVideo(270, interpolation="linear"),
         CenterCropVideo((224, 224)),
         I3DPixelsValue(),
         ChangeVideoShape("CTHW"),
@@ -88,32 +88,21 @@ train = data[data["subset"] == "train"]
 test = data[data["subset"] == "test"]
 
 train_dataset = LsfbDataset(
-    train,
-    nbr_frames,
-    sequence_label=True,
-    transforms=composed_train,
-    one_hot=True,
-    padding="loop",
+    train, sequence_label=True, transforms=composed_train, one_hot=True,
 )
 
 labels = train_dataset.labels
 
 test_dataset = LsfbDataset(
-    test,
-    nbr_frames,
-    sequence_label=True,
-    transforms=compose_test,
-    one_hot=True,
-    padding="loop",
-    labels=labels,
+    test, sequence_label=True, transforms=compose_test, one_hot=True, labels=labels,
 )
 
 dataloader = torch.utils.data.DataLoader(
-    train_dataset, batch_size=batch_size, shuffle=True, num_workers=6
+    train_dataset, batch_size=batch_size, shuffle=True, num_workers=5
 )
 
 val_dataloader = torch.utils.data.DataLoader(
-    test_dataset, batch_size=test_batch_size, shuffle=True, num_workers=3,
+    test_dataset, batch_size=test_batch_size, shuffle=True, num_workers=2,
 )
 
 dataloaders = {"train": dataloader, "val": val_dataloader}
@@ -153,8 +142,9 @@ else:
 
 i3d.cuda()
 
+
 optimizer = optim.SGD(i3d.parameters(), lr=init_lr, momentum=0.9, weight_decay=0.01)
-lr_sched = optim.lr_scheduler.MultiStepLR(optimizer, [4000, 9000, 18000, 27000])
+lr_sched = optim.lr_scheduler.MultiStepLR(optimizer, [5, 15])
 criterion = nn.CrossEntropyLoss()
 
 
@@ -228,7 +218,6 @@ def train_i3d(
             cumulation = 0
             optimizer.step()
             optimizer.zero_grad()
-            scheduler.step()
 
             print(
                 "{} Loss: {:.4f}  Accuracy: {:.4f}".format(
@@ -238,14 +227,13 @@ def train_i3d(
             # save model
 
             torch.save(
-                model.module.state_dict(), save_path,
+                model.state_dict(), save_path,
             )
 
             batch_accuracy = batch_loss = 0.0
 
     optimizer.step()
     optimizer.zero_grad()
-    scheduler.step()
 
     return epoch_loss, epoch_acc
 
@@ -308,16 +296,15 @@ def eval_i3d(dataloader, model, criterion, raw_pred_path):
     return eval_loss, eval_acc
 
 
-mlflow.set_experiment("I3D")
+mlflow.set_experiment("I3D Expe 3 rgb kinetic")
 
-with mlflow.start_run(run_id="ae47157afd9b45ceb283fa1526785ddf") as run:
-    # with mlflow.start_run(run_name=experiment_name) as run:
+with mlflow.start_run(run_name=experiment_name) as run:
     params_ml_flow["run_id"] = run.info.run_id
-    # mlflow.log_params(params_ml_flow)
+    mlflow.log_params(params_ml_flow)
 
     steps = 0
     while steps < max_steps:  # for epoch in range(num_epochs):
-        print("Step {}/{}".format(steps, max_steps))
+        print("Step {}/{}".format(steps + 1, max_steps))
         print("-" * 10)
 
         # Each epoch has a training and validation phase
@@ -372,4 +359,5 @@ with mlflow.start_run(run_id="ae47157afd9b45ceb283fa1526785ddf") as run:
                 mlflow.log_metric("val_acc", accuracy)
 
         steps += 1
+        lr_sched.step()
 

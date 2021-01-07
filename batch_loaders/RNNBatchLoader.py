@@ -56,9 +56,9 @@ class RNNBatchLoader(BaseLoader):
                 X[frame_index][vid_index] = torch.from_numpy(frame)
 
         # Using torch utility to handle the variable length of each data in the parser
-        X_final = torch.nn.utils.rnn.pack_padded_sequence(
-            X, lengths, enforce_sorted=False
-        )
+
+        # ATTENTION JEROME batch_first=True quand tu convertiras ça en dataloader
+        X_final = torch.nn.utils.rnn.pack_padded_sequence(X, lengths)
 
         return X_final, y
 

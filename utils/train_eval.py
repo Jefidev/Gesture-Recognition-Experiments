@@ -9,11 +9,12 @@ def train_model(
     accuracy = 0
 
     model.train().to(device)
-
-    for batch_idx in range(len(loader)):
+    batch_idx = 0
+    for data in loader:
         print(f"\rBatch : {batch_idx+1} / {len(loader)}", end="\r")
+        batch_idx += 1
 
-        X, y = loader.get_batch(batch_idx)
+        X, y = data
         X = X.to(device)
         y = y.to(device)
 
@@ -44,9 +45,13 @@ def eval_model(model, criterion, loader, device, batch_size):
     eval_acc = 0
 
     model.eval().to(device)
+    batch_idx = 0
 
-    for batch_idx in range(len(loader)):
-        X, y = loader.get_batch(batch_idx)
+    for data in loader:
+        print(f"\rBatch : {batch_idx+1} / {len(loader)}", end="\r")
+        batch_idx += 1
+
+        X, y = data
         X = X.to(device)
         y = y.to(device)
 

@@ -167,12 +167,15 @@ class TrimVideo(object):
         self.end = size
         self.begin = 0
 
-        if self.offset != None:
+        if offset != None:
             self.begin = offset
             self.end += offset
 
     def __call__(self, clip):
-        resized = clip[self.beging : self.end]
+        resized = clip
+
+        if len(clip) > self.end:
+            resized = clip[self.begin : self.end]
         return np.array(resized)
 
 

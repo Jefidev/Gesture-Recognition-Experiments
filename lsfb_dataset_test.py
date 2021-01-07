@@ -37,7 +37,7 @@ composed = Compose(
 )
 
 lsfb_dataset = LsfbDataset(
-    data, sequence_label=True, transforms=composed, one_hot=True, padding="loop",
+    data, sequence_label=True, transforms=composed, one_hot=True,
 )
 
 
@@ -59,5 +59,6 @@ def write_video(video, idx):
 for j in range(0, 5):
     for i in range(len(lsfb_dataset)):
         sequence = lsfb_dataset[i]
+        print(sequence[1].shape)
         write_video(sequence[0], j)
 

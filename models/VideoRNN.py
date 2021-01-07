@@ -37,9 +37,9 @@ class VideoRNN(nn.Module):
 
         # Classification layer
         self.classifier = nn.Sequential(
-            nn.Linear(hidden_size * self.num_layer * 2, 256),
+            nn.Linear(hidden_size * self.num_layer * 2, 1024),
             nn.ReLU(),
-            nn.Linear(256, n_classes),
+            nn.Linear(1024, n_classes),
         )
 
     def forward(self, input):
