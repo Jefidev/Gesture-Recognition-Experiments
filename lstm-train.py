@@ -2,7 +2,6 @@ import torch
 import torch.nn as nn
 from models.VideoRNN import VideoRNN
 from utils.lsfb_dataset_loader import load_lsfb_dataset
-from batch_loaders.RNNBatchLoader import RNNBatchLoader
 from torchvision import datasets, transforms
 from datasets.lsfb_dataset import LsfbDataset
 import mlflow
@@ -26,14 +25,11 @@ print(device)
 # Setup ressources
 params = {
     "epoch": 20,
-    "batch_size": 20,
-    "learning_rate": 0.001,
-    "height": 144,
-    "width": 180,
+    "batch_size": 3,
+    "learning_rate": 0.01,
     "hidden_size": 2048,
-    "max_frames": 14,
-    "cumulation": 10,
-    "lstm_layer": 2,
+    "cumulation": 20,
+    "lstm_layer": 1,
 }
 
 epoch = params["epoch"]
@@ -65,6 +61,41 @@ compose_test = transforms.Compose(
         ChangeVideoShape("TCHW"),
     ]
 )
+
+
+## Loading data and setup the batch loader
+data = load_lsfb_dataset(
+    "/home/jeromefink/Documents/unamur/signLanguage/Data/most_frequents_20"
+)
+train = data[data["subset"] == "train"]
+test = data[data["subset"] == "test"]
+
+print(len(data))
+
+train_dataset = LsfbDataset(train, transforms=composed_train)
+
+labels = train_dataset.labels
+
+test_dataset = LsfbDataset(test, transforms=compose_test, labels=labels)
+
+train_dataloader = torch.utils.data.DataLoader(
+    train_dataset, batch_size=batch_size, shuffle=True, num_workers=2
+)
+
+val_dataloader = torch.utils.data.DataLoader(
+    test_dataset, batch_size=batch_size, shuffle=True, num_workers=2,
+)
+
+
+n_class = len(labels)
+net = VideoRNN(params["hidden_size"], n_class, batch_size, device, 2)
+
+# Chosing optimizer and loss function
+criterion = nn.CrossEntropyLoss()
+optimizer = torch.optim.SGD(
+    net.parameters(), lr=params["learning_rate"], momentum=0.9, weight_decay=0.0000001
+)
+lr_sched = torch.optim.lr_scheduler.MultiStepLR(optimizer, [300, 1000])
 
 
 def pack_sequence(X):
@@ -100,6 +131,9 @@ def train_model(
         batch_idx += 1
 
         X, y = data
+        # Correcting type of the tensors
+        X = X.type(torch.FloatTensor)
+
         X = pack_sequence(X)
         X = X.to(device)
         y = y.to(device)
@@ -138,6 +172,10 @@ def eval_model(model, criterion, loader, device, batch_size):
         batch_idx += 1
 
         X, y = data
+
+        # Correcting type of the tensors
+        X = X.type(torch.FloatTensor)
+
         X = pack_sequence(X)
         X = X.to(device)
         y = y.to(device)
@@ -154,45 +192,6 @@ def eval_model(model, criterion, loader, device, batch_size):
     eval_loss = eval_loss / len(loader)
     eval_acc = eval_acc.double() / (len(loader) * batch_size)
     return eval_loss, eval_acc
-
-
-## Loading data and setup the batch loader
-data = load_lsfb_dataset(
-    "/home/jeromefink/Documents/unamur/signLanguage/Data/most_frequents_25"
-)
-train = data[data["subset"] == "train"]
-test = data[data["subset"] == "test"]
-
-print(len(data))
-
-train_dataset = LsfbDataset(train, transforms=composed_train)
-
-labels = train_dataset.labels
-
-test_dataset = LsfbDataset(test, transforms=compose_test, labels=labels)
-
-train_dataloader = torch.utils.data.DataLoader(
-    train_dataset, batch_size=batch_size, shuffle=True, num_workers=5
-)
-
-val_dataloader = torch.utils.data.DataLoader(
-    test_dataset, batch_size=batch_size, shuffle=True, num_workers=2,
-)
-
-
-n_class = len(labels)
-net = VideoRNN(params["hidden_size"], n_class, batch_size, device, 2)
-print(net)
-
-# Chosing optimizer and loss function
-criterion = nn.CrossEntropyLoss()
-optimizer = torch.optim.SGD(
-    net.parameters(), lr=params["learning_rate"], momentum=0.9, weight_decay=0.0000001
-)
-lr_sched = torch.optim.lr_scheduler.MultiStepLR(optimizer, [300, 1000])
-
-
-# Training functions
 
 
 # Training loop
