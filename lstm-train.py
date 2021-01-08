@@ -88,7 +88,7 @@ val_dataloader = torch.utils.data.DataLoader(
 
 
 n_class = len(labels)
-net = VideoRNN(params["hidden_size"], n_class, batch_size, device, 2)
+net = VideoRNN(params["hidden_size"], n_class, device, 2)
 
 # Chosing optimizer and loss function
 criterion = nn.CrossEntropyLoss()
@@ -111,10 +111,11 @@ def pack_sequence(X):
             if np.sum(frame) == 0:
                 lengths.append(l)
                 break
+            l += 1
 
-        l += 1
-
-    return torch.nn.utils.rnn.pack_padded_sequence(X, lengths, batch_first=True)
+    return torch.nn.utils.rnn.pack_padded_sequence(
+        X, lengths, batch_first=True, enforce_sorted=False
+    )
 
 
 def train_model(

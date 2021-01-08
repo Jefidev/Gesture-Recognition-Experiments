@@ -6,11 +6,10 @@ from torchvision import models
 
 # Inspiration : https://arxiv.org/abs/1603.09025
 class VideoRNN(nn.Module):
-    def __init__(self, hidden_size, n_classes, batch_size, device, num_layer=1):
+    def __init__(self, hidden_size, n_classes, device, num_layer=1):
         super(VideoRNN, self).__init__()
 
         self.hidden_size = hidden_size
-        self.batch = batch_size
         self.num_layer = num_layer
         self.device = device
 
@@ -43,13 +42,13 @@ class VideoRNN(nn.Module):
         )
 
     def forward(self, input):
-        hidden = torch.zeros(self.num_layer * 2, self.batch, self.hidden_size).to(
+        batch = input.batch_sizes[0]
+
+        hidden = torch.zeros(self.num_layer * 2, batch, self.hidden_size).to(
             self.device
         )
 
-        c_0 = torch.zeros(self.num_layer * 2, self.batch, self.hidden_size).to(
-            self.device
-        )
+        c_0 = torch.zeros(self.num_layer * 2, batch, self.hidden_size).to(self.device)
 
         embedded = self.simple_elementwise_apply(self.embedding, input)
         output, hidden = self.gru(embedded, (hidden, c_0))
