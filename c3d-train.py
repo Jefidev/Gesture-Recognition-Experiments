@@ -23,15 +23,15 @@ from transforms.video_transforms import (
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 
-path = "/home/jeromefink/Documents/unamur/signLanguage/Data/most_frequents_20"
+path = "/home/jeromefink/Documents/unamur/signLanguage/Data/most_frequents_395"
 # path = "./mock-data"
 params = {
-    "batch_size": 5,
+    "batch_size": 2,
     "max_frames": 48,
     "epochs": 20,
     "lr": 0.01,
     "dataset": path.split("/")[-1],
-    "cumulation": 20,
+    "cumulation": 40,
 }
 
 
@@ -82,7 +82,6 @@ val_dataloader = torch.utils.data.DataLoader(
 
 params["n_class"] = len(labels)
 net = C3D(params["n_class"])
-print(net)
 
 # Chosing optimizer and loss function
 criterion = nn.CrossEntropyLoss()
@@ -109,6 +108,9 @@ def train_model(
         batch_idx += 1
 
         X, y = data
+        # Correcting type of the tensors
+        X = X.type(torch.FloatTensor)
+
         X = X.to(device)
         y = y.to(device)
 
@@ -146,6 +148,9 @@ def eval_model(model, criterion, loader, device, batch_size):
         batch_idx += 1
 
         X, y = data
+        # Correcting type of the tensors
+        X = X.type(torch.FloatTensor)
+
         X = X.to(device)
         y = y.to(device)
 
@@ -164,7 +169,7 @@ def eval_model(model, criterion, loader, device, batch_size):
 
 
 # Training loop
-mlflow.set_experiment("C3D")
+mlflow.set_experiment("Paper-C3D-LSFB")
 
 with mlflow.start_run(run_name=params["dataset"]):
     mlflow.log_params(params)

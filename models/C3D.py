@@ -40,7 +40,7 @@ class C3D(nn.Module):
             kernel_size=(2, 2, 2), stride=(2, 2, 2), padding=(0, 1, 1)
         )
 
-        self.fc7 = nn.Linear(8192, 4096)
+        self.fc7 = nn.Linear(25600, 4096)
         self.fc8 = nn.Linear(4096, 4096)
         self.fc9 = nn.Linear(4096, num_classes)
 
@@ -71,7 +71,8 @@ class C3D(nn.Module):
         x = self.relu(self.conv6a(x))
         x = self.pool6(x)
 
-        x = x.view(-1, 8192)
+        x = torch.flatten(x, start_dim=1)
+
         x = self.relu(self.fc7(x))
         x = self.dropout(x)
         x = self.relu(self.fc8(x))
