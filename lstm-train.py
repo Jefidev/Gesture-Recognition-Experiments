@@ -25,7 +25,7 @@ print(device)
 # Setup ressources
 params = {
     "epoch": 20,
-    "batch_size": 3,
+    "batch_size": 4,
     "learning_rate": 0.01,
     "hidden_size": 2048,
     "cumulation": 20,
@@ -43,8 +43,8 @@ RUN_NAME = f"epoch:{epoch}-batch:{batch_size}"
 # Transformations for train images
 composed_train = transforms.Compose(
     [
-        TrimVideo(100),
-        PadVideo(100, loop=False),
+        TrimVideo(50),
+        PadVideo(50, loop=False),
         ResizeVideo(270, interpolation="linear"),
         RandomCropVideo((224, 224)),
         ChangeVideoShape("TCHW"),
@@ -54,8 +54,8 @@ composed_train = transforms.Compose(
 # Transformation for test images
 compose_test = transforms.Compose(
     [
-        TrimVideo(100),
-        PadVideo(100, loop=False),
+        TrimVideo(50),
+        PadVideo(50, loop=False),
         ResizeVideo(270, interpolation="linear"),
         CenterCropVideo((224, 224)),
         ChangeVideoShape("TCHW"),
@@ -65,7 +65,7 @@ compose_test = transforms.Compose(
 
 ## Loading data and setup the batch loader
 data = load_lsfb_dataset(
-    "/home/jeromefink/Documents/unamur/signLanguage/Data/most_frequents_20"
+    "/home/jeromefink/Documents/unamur/signLanguage/Data/most_frequents_395"
 )
 train = data[data["subset"] == "train"]
 test = data[data["subset"] == "test"]
@@ -104,18 +104,22 @@ def pack_sequence(X):
     """
     numpy_X = X.numpy()
     lengths = []
+
     for i in range(len(numpy_X)):
         seq = numpy_X[i]
-        l = 1
+        l = 0
         for frame in seq:
-            if np.sum(frame) == 0:
-                lengths.append(l)
-                break
             l += 1
+            if np.sum(frame) == 0:
+                break
 
-    return torch.nn.utils.rnn.pack_padded_sequence(
+        lengths.append(l)
+
+    packed = torch.nn.utils.rnn.pack_padded_sequence(
         X, lengths, batch_first=True, enforce_sorted=False
     )
+
+    return packed
 
 
 def train_model(
@@ -154,6 +158,10 @@ def train_model(
             lr_scheduler.step()
 
         accuracy += torch.sum(preds == y.data)
+
+    optimizer.step()
+    optimizer.zero_grad()
+    lr_scheduler.step()
 
     epoch_loss = epoch_loss / len(loader)
     train_acc = accuracy.double() / (len(loader) * batch_size)
