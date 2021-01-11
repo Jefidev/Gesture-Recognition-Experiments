@@ -39,9 +39,8 @@ batch_size = params["batch_size"]
 RUN_NAME = f"epoch:{epoch}-batch:{batch_size}"
 
 # files
-save_path = f"lsfb-395-cnn-lstm.pt"
-labels_file = "lsfb-395-cnn-lstm.json"
-predictions_file = "lsfb-395-cnn-lstm.pkl"
+input_file = "/home/jeromefink/Documents/unamur/signLanguage/Data/most_frequents_20"
+output_file = "./checkpoints"
 
 
 # Using
@@ -71,9 +70,7 @@ compose_test = transforms.Compose(
 
 
 ## Loading data and setup the batch loader
-data = load_lsfb_dataset(
-    "/home/jeromefink/Documents/unamur/signLanguage/Data/most_frequents_20"
-)
+data = load_lsfb_dataset(input_file)
 train = data[data["subset"] == "train"]
 test = data[data["subset"] == "test"]
 
@@ -84,7 +81,7 @@ train_dataset = LsfbDataset(train, transforms=composed_train)
 # Saving label mapping
 labels = train_dataset.labels
 
-with open(labels_file, "w") as f:
+with open(f"{output_file}/labels.json", "w") as f:
     json.dump(labels, f)
 
 test_dataset = LsfbDataset(test, transforms=compose_test, labels=labels)
@@ -142,7 +139,6 @@ def train_model(
 
     model.train().to(device)
     batch_idx = 0
-    raw_predictions = []
 
     for data in loader:
         print(f"\rBatch : {batch_idx+1} / {len(loader)}", end="\r")
@@ -172,18 +168,9 @@ def train_model(
 
         accuracy += torch.sum(preds == y.data)
 
-        numpy_pred = output.cpu().detach().numpy()
-        for i in range(len(numpy_pred)):
-            item = y.item()
-            list_pred = numpy_pred[i].tolist()
-            raw_predictions.append((item, list_pred))
-
     optimizer.step()
     optimizer.zero_grad()
     lr_scheduler.step()
-
-    with open(predictions_file, "wb") as f:
-        pickle.dump(raw_predictions, f)
 
     epoch_loss = epoch_loss / len(loader)
     train_acc = accuracy.double() / (len(loader) * batch_size)
@@ -197,6 +184,7 @@ def eval_model(model, criterion, loader, device, batch_size):
 
     model.eval().to(device)
     batch_idx = 0
+    raw_predictions = []
 
     for data in loader:
         print(f"\rBatch : {batch_idx+1} / {len(loader)}", end="\r")
@@ -220,6 +208,15 @@ def eval_model(model, criterion, loader, device, batch_size):
             _, preds = torch.max(output, 1)
             eval_acc += torch.sum(preds == y.data)
 
+            numpy_pred = output.cpu().detach().numpy()
+            for i in range(len(numpy_pred)):
+                item = y[i].item()
+                list_pred = numpy_pred[i].tolist()
+                raw_predictions.append((item, list_pred))
+
+    with open(f"{output_file}/predictions.pkl", "wb") as f:
+        pickle.dump(raw_predictions, f)
+
     eval_loss = eval_loss / len(loader)
     eval_acc = eval_acc.double() / (len(loader) * batch_size)
     return eval_loss, eval_acc
@@ -228,6 +225,7 @@ def eval_model(model, criterion, loader, device, batch_size):
 # Training loop
 mlflow.set_experiment("ConvNet + GRU")
 current_min_loss = 3000
+last_improvement = 0
 
 with mlflow.start_run(run_name="Adding scheduler"):
     mlflow.log_params(params)
@@ -259,5 +257,11 @@ with mlflow.start_run(run_name="Adding scheduler"):
 
         if eval_loss < current_min_loss:
             current_min_loss = eval_loss
-            torch.save(net.state_dict(), save_path)
+            torch.save(net.state_dict(), f"{output_file}/model.pt")
+            last_improvement = 0
+        else:
+            last_improvement += 1
 
+        if last_improvement > 3:
+            print("No improvement since 3 epochs. Shutting down")
+            break
