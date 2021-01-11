@@ -37,7 +37,7 @@ params = {
 
 epoch = params["epoch"]
 batch_size = params["batch_size"]
-RUN_NAME = "epoch:{}-batch:{}".format(epoch, batch_size)
+RUN_NAME = f"epoch:{epoch}-batch:{batch_size}"
 
 # Parsing the locations
 parser = argparse.ArgumentParser()
@@ -47,7 +47,6 @@ args = parser.parse_args()
 
 input_file = args.input
 output_file = args.output
-
 
 # Using
 
@@ -87,7 +86,7 @@ train_dataset = LsfbDataset(train, transforms=composed_train)
 # Saving label mapping
 labels = train_dataset.labels
 
-with open("{}/labels.json".format(output_file), "w") as f:
+with open(f"{output_file}/labels.json", "w") as f:
     json.dump(labels, f)
 
 test_dataset = LsfbDataset(test, transforms=compose_test, labels=labels)
@@ -147,7 +146,7 @@ def train_model(
     batch_idx = 0
 
     for data in loader:
-        print("\rBatch : {} / {}".format((batch_idx + 1), len(loader)), end="\r")
+        print(f"\rBatch : {batch_idx+1} / {len(loader)}", end="\r")
         batch_idx += 1
 
         X, y = data
@@ -193,7 +192,7 @@ def eval_model(model, criterion, loader, device, batch_size):
     raw_predictions = []
 
     for data in loader:
-        print("\rBatch : {} / {}".format((batch_idx + 1), len(loader)), end="\r")
+        print(f"\rBatch : {batch_idx+1} / {len(loader)}", end="\r")
         batch_idx += 1
 
         X, y = data
@@ -220,7 +219,7 @@ def eval_model(model, criterion, loader, device, batch_size):
                 list_pred = numpy_pred[i].tolist()
                 raw_predictions.append((item, list_pred))
 
-    with open("{}/predictions.pkl".format(output_file), "wb") as f:
+    with open(f"{output_file}/predictions.pkl", "wb") as f:
         pickle.dump(raw_predictions, f)
 
     eval_loss = eval_loss / len(loader)
@@ -237,7 +236,7 @@ with mlflow.start_run(run_name="Adding scheduler"):
     mlflow.log_params(params)
 
     for iter in range(1, epoch + 1):
-        print("{}/{}\n".format(iter, epoch))
+        print(f"{iter}/{epoch}\n")
 
         train_loss, train_acc = train_model(
             net,
@@ -249,7 +248,7 @@ with mlflow.start_run(run_name="Adding scheduler"):
             batch_size,
             params["cumulation"],
         )
-        print("train_loss : {}  train_acc : {}".format(train_loss, train_acc))
+        print(f"train_loss : {train_loss}  train_acc : {train_acc}")
         mlflow.log_metric("train_loss", train_loss)
         mlflow.log_metric("train_acc", train_acc.item())
 
@@ -257,13 +256,13 @@ with mlflow.start_run(run_name="Adding scheduler"):
             net, criterion, val_dataloader, device, batch_size
         )
 
-        print("eval_loss : {}  eval_acc : {}".format(eval_loss, eval_acc))
+        print(f"eval_loss : {eval_loss}  eval_acc : {eval_acc}")
         mlflow.log_metric("eval_loss", eval_loss)
         mlflow.log_metric("eval_acc", eval_acc.item())
 
         if eval_loss < current_min_loss:
             current_min_loss = eval_loss
-            torch.save(net.state_dict(), "{}/model.pt".format(output_file))
+            torch.save(net.state_dict(), f"{output_file}/model.pt")
             last_improvement = 0
         else:
             last_improvement += 1
