@@ -8,6 +8,7 @@ import mlflow
 import numpy as np
 import json
 import pickle
+import argparse
 
 from transforms.video_transforms import (
     ChangeVideoShape,
@@ -38,9 +39,14 @@ epoch = params["epoch"]
 batch_size = params["batch_size"]
 RUN_NAME = f"epoch:{epoch}-batch:{batch_size}"
 
-# files
-input_file = "/home/jeromefink/Documents/unamur/signLanguage/Data/most_frequents_20"
-output_file = "./checkpoints"
+# Parsing the locations
+parser = argparse.ArgumentParser()
+parser.add_argument("-i", "--input", help="Path to the input video directory")
+parser.add_argument("-o", "--output", help="Path to the output directory")
+args = parser.parse_args()
+
+input_file = args.input
+output_file = args.output
 
 
 # Using
