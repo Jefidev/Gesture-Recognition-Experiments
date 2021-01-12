@@ -27,11 +27,11 @@ print(device)
 
 # Setup ressources
 params = {
-    "epoch": 20,
-    "batch_size": 4,
+    "epoch": 30,
+    "batch_size": 6,
     "learning_rate": 0.01,
     "hidden_size": 2048,
-    "cumulation": 20,
+    "cumulation": 42,
     "lstm_layer": 1,
 }
 
@@ -39,14 +39,16 @@ epoch = params["epoch"]
 batch_size = params["batch_size"]
 RUN_NAME = f"epoch:{epoch}-batch:{batch_size}"
 
-# Parsing the locations
+# Parsing the args
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--input", help="Path to the input video directory")
 parser.add_argument("-o", "--output", help="Path to the output directory")
+parser.add_argument("-n", "--name", help="Name of the MLflow experiment")
 args = parser.parse_args()
 
 input_file = args.input
 output_file = args.output
+experiment_name = args.name
 
 # Using
 
@@ -92,11 +94,11 @@ with open(f"{output_file}/labels.json", "w") as f:
 test_dataset = LsfbDataset(test, transforms=compose_test, labels=labels)
 
 train_dataloader = torch.utils.data.DataLoader(
-    train_dataset, batch_size=batch_size, shuffle=True, num_workers=2
+    train_dataset, batch_size=batch_size, shuffle=True, num_workers=4
 )
 
 val_dataloader = torch.utils.data.DataLoader(
-    test_dataset, batch_size=batch_size, shuffle=True, num_workers=2,
+    test_dataset, batch_size=batch_size, shuffle=True, num_workers=4,
 )
 
 
@@ -228,7 +230,7 @@ def eval_model(model, criterion, loader, device, batch_size):
 
 
 # Training loop
-mlflow.set_experiment("ConvNet + GRU")
+mlflow.set_experiment(experiment_name)
 current_min_loss = 3000
 last_improvement = 0
 

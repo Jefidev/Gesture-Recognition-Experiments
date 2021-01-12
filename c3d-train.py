@@ -17,6 +17,8 @@ from transforms.video_transforms import (
     TrimVideo,
     PadVideo,
 )
+import argparse
+import pickle
 
 
 # Loading gpu
@@ -34,10 +36,21 @@ params = {
     "cumulation": 40,
 }
 
+# Parsing the args
+parser = argparse.ArgumentParser()
+parser.add_argument("-i", "--input", help="Path to the input video directory")
+parser.add_argument("-o", "--output", help="Path to the output directory")
+parser.add_argument("-n", "--name", help="Name of the MLflow experiment")
+args = parser.parse_args()
+
+input_file = args.input
+output_file = args.output
+experiment_name = args.name
+
 
 ## Loading data and setup the batch loader
 #
-data = load_lsfb_dataset(path)
+data = load_lsfb_dataset(input_file)
 
 train = data[data["subset"] == "train"]
 test = data[data["subset"] == "test"]
@@ -142,6 +155,7 @@ def eval_model(model, criterion, loader, device, batch_size):
 
     model.eval().to(device)
     batch_idx = 0
+    raw_predictions = []
 
     for data in loader:
         print(f"\rBatch : {batch_idx+1} / {len(loader)}", end="\r")
@@ -163,13 +177,24 @@ def eval_model(model, criterion, loader, device, batch_size):
             _, preds = torch.max(output, 1)
             eval_acc += torch.sum(preds == y.data)
 
+            numpy_pred = output.cpu().detach().numpy()
+            for i in range(len(numpy_pred)):
+                item = y[i].item()
+                list_pred = numpy_pred[i].tolist()
+                raw_predictions.append((item, list_pred))
+
+    with open(f"{output_file}/predictions.pkl", "wb") as f:
+        pickle.dump(raw_predictions, f)
+
     eval_loss = eval_loss / len(loader)
     eval_acc = eval_acc.double() / (len(loader) * batch_size)
     return eval_loss, eval_acc
 
 
 # Training loop
-mlflow.set_experiment("Paper-C3D-LSFB")
+mlflow.set_experiment(experiment_name)
+current_min_loss = 3000
+last_improvement = 0
 
 with mlflow.start_run(run_name=params["dataset"]):
     mlflow.log_params(params)
@@ -198,4 +223,15 @@ with mlflow.start_run(run_name=params["dataset"]):
         print(f"eval_loss : {eval_loss}  eval_acc : {eval_acc}")
         mlflow.log_metric("eval_loss", eval_loss)
         mlflow.log_metric("eval_acc", eval_acc.item())
+
+        if eval_loss < current_min_loss:
+            current_min_loss = eval_loss
+            torch.save(net.state_dict(), f"{output_file}/model.pt")
+            last_improvement = 0
+        else:
+            last_improvement += 1
+
+        if last_improvement > 3:
+            print("No improvement since 3 epochs. Shutting down")
+            break
 

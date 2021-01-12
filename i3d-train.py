@@ -34,6 +34,7 @@ from models.pytorch_i3d import InceptionI3d
 from utils.lsfb_dataset_loader import load_lsfb_dataset
 from datasets.lsfb_dataset import LsfbDataset
 import mlflow
+import argparse
 
 
 init_lr = 0.5
@@ -41,21 +42,31 @@ max_steps = 100
 mode = "rgb_kinetic"
 batch_size = 6
 test_batch_size = 2
-model_path = "./checkpoints/most_frequents_396pt"
 cumulation = 64  # accum gradient
-path = "/home/jeromefink/Documents/unamur/signLanguage/Data/most_frequents_396"
 nbr_frames = 48
-experiment_name = "I3D RGB 396"
-predictions_file = "./checkpoints/most_frequents_396.pkl"
-labels_file = "./checkpoints/most_frequents_396.json"
+
 
 params_ml_flow = {
     "init_lr": init_lr,
     "initial_weights": mode,
     "batch_size": batch_size,
-    "dataset": path,
     "nbr_frames": nbr_frames,
 }
+
+# Parsing the args
+parser = argparse.ArgumentParser()
+parser.add_argument("-i", "--input", help="Path to the input video directory")
+parser.add_argument("-o", "--output", help="Path to the output directory")
+parser.add_argument("-n", "--name", help="Name of the MLflow experiment")
+parser.add_argument("-k", "--kinetic", help="Path to the kinetic weigths")
+
+args = parser.parse_args()
+
+input_file = args.input
+output_file = args.output
+experiment_name = args.name
+kinetic_path = args.kinetic
+
 
 # setup dataset
 # Transformations for train images
@@ -82,7 +93,7 @@ compose_test = transforms.Compose(
     ]
 )
 
-data = load_lsfb_dataset(path)
+data = load_lsfb_dataset(input_file)
 
 train = data[data["subset"] == "train"]
 test = data[data["subset"] == "test"]
@@ -108,40 +119,18 @@ val_dataloader = torch.utils.data.DataLoader(
 dataloaders = {"train": dataloader, "val": val_dataloader}
 datasets = {"train": train_dataset, "val": test_dataset}
 
-with open(labels_file, "w") as f:
+with open(f"{output_file}/labels.json", "w") as f:
     json.dump(labels, f)
 
 nbr_class = len(labels)
 
-# setup the model
-if mode == "flow":
-    i3d = InceptionI3d(400, in_channels=2)
-    i3d.load_state_dict(torch.load("checkpoints/flow_imagenet.pt"))
-    i3d.replace_logits(nbr_class)
-    print("Flow kinetic loaded")
-elif mode == "rgb_msasl":
-    i3d = InceptionI3d(100, in_channels=3)
-    i3d.load_state_dict(torch.load("checkpoints/MSASL.pt"))
-    i3d.replace_logits(nbr_class)
-    print("MSASL loaded")
-elif mode == "charades":
-    i3d = InceptionI3d(157, in_channels=3)
-    i3d.load_state_dict(torch.load("checkpoints/rgb_charades.pt"))
-    i3d.replace_logits(nbr_class)
-    print("RGB Charade loaded")
-elif mode == "lsfb410":
-    i3d = InceptionI3d(401, in_channels=3)
-    i3d.load_state_dict(torch.load("checkpoints/lsfb_410.pt"))
-    # i3d.replace_logits(nbr_class)
-    print("RGB LSFB 410 loaded")
-else:
-    i3d = InceptionI3d(400, in_channels=3)
-    i3d.load_state_dict(torch.load("checkpoints/rgb_imagenet.pt"))
-    i3d.replace_logits(nbr_class)
-    print("RGB kinetic loaded")
+
+i3d = InceptionI3d(400, in_channels=3)
+i3d.load_state_dict(torch.load(kinetic_path))
+i3d.replace_logits(nbr_class)
+print("RGB kinetic loaded")
 
 i3d.cuda()
-
 
 optimizer = optim.SGD(i3d.parameters(), lr=init_lr, momentum=0.9, weight_decay=0.01)
 lr_sched = optim.lr_scheduler.MultiStepLR(optimizer, [5, 15])
@@ -322,7 +311,7 @@ with mlflow.start_run(run_name=experiment_name) as run:
                     criterion,
                     cumulation,
                     batch_size,
-                    model_path,
+                    f"{output_file}/model.pt",
                 )
 
                 epoch_loss = (loss * cumulation) / size
@@ -343,7 +332,7 @@ with mlflow.start_run(run_name=experiment_name) as run:
                 size = len(dataloader)
 
                 tot_loss, accuracy = eval_i3d(
-                    dataloader, i3d, criterion, predictions_file
+                    dataloader, i3d, criterion, f"{output_file}/predictions.pkl"
                 )
 
                 tot_loss = tot_loss / size
