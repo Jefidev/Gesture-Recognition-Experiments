@@ -31,7 +31,7 @@ params = {
     "batch_size": 2,
     "max_frames": 48,
     "epochs": 20,
-    "lr": 0.01,
+    "lr": 0.1,
     "dataset": path.split("/")[-1],
     "cumulation": 40,
 }
@@ -41,11 +41,15 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--input", help="Path to the input video directory")
 parser.add_argument("-o", "--output", help="Path to the output directory")
 parser.add_argument("-n", "--name", help="Name of the MLflow experiment")
+parser.add_argument("-l", "--load", help="Indicate to load model weight")
+parser.add_argument("-w", "--workers", help="Number of workders", default=4)
 args = parser.parse_args()
 
 input_file = args.input
 output_file = args.output
 experiment_name = args.name
+model_weights = args.load
+nb_workers = args.workers
 
 
 ## Loading data and setup the batch loader
@@ -85,16 +89,20 @@ labels = train_dataset.labels
 test_dataset = LsfbDataset(test, transforms=compose_test, labels=labels)
 
 train_dataloader = torch.utils.data.DataLoader(
-    train_dataset, batch_size=params["batch_size"], shuffle=True, num_workers=2
+    train_dataset, batch_size=params["batch_size"], shuffle=True, num_workers=nb_workers
 )
 
 val_dataloader = torch.utils.data.DataLoader(
-    test_dataset, batch_size=params["batch_size"], shuffle=True, num_workers=2,
+    test_dataset, batch_size=params["batch_size"], shuffle=True, num_workers=nb_workers,
 )
 
 
 params["n_class"] = len(labels)
 net = C3D(params["n_class"])
+
+if model_weights != None:
+    net.load_state_dict(torch.load(model_weights))
+    print("Weights loaded")
 
 # Chosing optimizer and loss function
 criterion = nn.CrossEntropyLoss()

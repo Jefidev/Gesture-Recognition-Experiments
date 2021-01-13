@@ -59,6 +59,8 @@ parser.add_argument("-i", "--input", help="Path to the input video directory")
 parser.add_argument("-o", "--output", help="Path to the output directory")
 parser.add_argument("-n", "--name", help="Name of the MLflow experiment")
 parser.add_argument("-k", "--kinetic", help="Path to the kinetic weigths")
+parser.add_argument("-l", "--load", help="Indicate to load model weight")
+parser.add_argument("-w", "--workers", help="Number of workders", default=4)
 
 args = parser.parse_args()
 
@@ -66,6 +68,8 @@ input_file = args.input
 output_file = args.output
 experiment_name = args.name
 kinetic_path = args.kinetic
+model_weights = args.load
+nb_workers = args.workers
 
 
 # setup dataset
@@ -109,11 +113,11 @@ test_dataset = LsfbDataset(
 )
 
 dataloader = torch.utils.data.DataLoader(
-    train_dataset, batch_size=batch_size, shuffle=True, num_workers=5
+    train_dataset, batch_size=batch_size, shuffle=True, num_workers=nb_workers
 )
 
 val_dataloader = torch.utils.data.DataLoader(
-    test_dataset, batch_size=test_batch_size, shuffle=True, num_workers=2,
+    test_dataset, batch_size=test_batch_size, shuffle=True, num_workers=nb_workers,
 )
 
 dataloaders = {"train": dataloader, "val": val_dataloader}
@@ -125,10 +129,16 @@ with open(f"{output_file}/labels.json", "w") as f:
 nbr_class = len(labels)
 
 
-i3d = InceptionI3d(400, in_channels=3)
-i3d.load_state_dict(torch.load(kinetic_path))
-i3d.replace_logits(nbr_class)
-print("RGB kinetic loaded")
+if model_weights == None:
+    i3d = InceptionI3d(400, in_channels=3)
+    i3d.load_state_dict(torch.load(kinetic_path))
+    i3d.replace_logits(nbr_class)
+    print("RGB kinetic loaded")
+else:
+    i3d = InceptionI3d(nbr_class, in_channels=3)
+    i3d.load_state_dict(torch.load(model_weights))
+    print("Previous weights loaded")
+
 
 i3d.cuda()
 
