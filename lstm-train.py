@@ -28,10 +28,10 @@ print(device)
 # Setup ressources
 params = {
     "epoch": 30,
-    "batch_size": 6,
+    "batch_size": 4,
     "learning_rate": 0.1,
     "hidden_size": 2048,
-    "cumulation": 42,
+    "cumulation": 64,
     "lstm_layer": 1,
 }
 
