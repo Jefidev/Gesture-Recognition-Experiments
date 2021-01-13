@@ -45,7 +45,7 @@ parser.add_argument("-i", "--input", help="Path to the input video directory")
 parser.add_argument("-o", "--output", help="Path to the output directory")
 parser.add_argument("-n", "--name", help="Name of the MLflow experiment")
 parser.add_argument("-l", "--load", help="Indicate to load model weight")
-parser.add_argument("-w", "--workers", help="Number of workders", default=4)
+parser.add_argument("-w", "--workers", help="Number of workders", default=4, type=int)
 
 args = parser.parse_args()
 
