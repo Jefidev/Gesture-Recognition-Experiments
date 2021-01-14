@@ -91,11 +91,10 @@ class LsfbDataset(Dataset):
 
         mapping = {}
 
+        class_number = 0
         for label in labels:
-            subset = self.data[self.data["label"] == label]
-            class_number = subset["label_nbr"].iloc[0]
-
             mapping[class_number] = label
+            class_number += 1
 
         if self.padding == "zero" and self.sequence_label:
             nbr_class = len(mapping)
