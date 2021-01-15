@@ -19,7 +19,8 @@ from transforms.video_transforms import (
 )
 import argparse
 import pickle
-
+import os
+import json
 
 # Loading gpu
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -82,9 +83,20 @@ compose_test = transforms.Compose(
     ]
 )
 
-train_dataset = LsfbDataset(train, transforms=composed_train)
+# Load labels if exists. If not create it
+if os.path.exists(f"{output_file}/labels.json"):
+    with open(f"{output_file}/labels.json", "r") as f:
+        labels = json.load(f)
+    train_dataset = LsfbDataset(train, transforms=composed_train, labels=labels)
 
-labels = train_dataset.labels
+else:
+    train_dataset = LsfbDataset(train, transforms=composed_train)
+
+    # Saving label mapping
+    labels = train_dataset.labels
+
+    with open(f"{output_file}/labels.json", "w") as f:
+        json.dump(labels, f)
 
 test_dataset = LsfbDataset(test, transforms=compose_test, labels=labels)
 

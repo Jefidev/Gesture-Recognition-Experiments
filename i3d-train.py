@@ -102,11 +102,29 @@ data = load_lsfb_dataset(input_file)
 train = data[data["subset"] == "train"]
 test = data[data["subset"] == "test"]
 
-train_dataset = LsfbDataset(
-    train, sequence_label=True, transforms=composed_train, one_hot=True,
-)
+# Load labels if exists. If not create it
+if os.path.exists(f"{output_file}/labels.json"):
+    with open(f"{output_file}/labels.json", "r") as f:
+        labels = json.load(f)
 
-labels = train_dataset.labels
+    train_dataset = LsfbDataset(
+        train,
+        sequence_label=True,
+        transforms=composed_train,
+        one_hot=True,
+        labels=labels,
+    )
+
+else:
+    train_dataset = LsfbDataset(
+        train, sequence_label=True, transforms=composed_train, one_hot=True,
+    )
+    # Saving label mapping
+    labels = train_dataset.labels
+
+    with open(f"{output_file}/labels.json", "w") as f:
+        json.dump(labels, f)
+
 
 test_dataset = LsfbDataset(
     test, sequence_label=True, transforms=compose_test, one_hot=True, labels=labels,
@@ -123,11 +141,9 @@ val_dataloader = torch.utils.data.DataLoader(
 dataloaders = {"train": dataloader, "val": val_dataloader}
 datasets = {"train": train_dataset, "val": test_dataset}
 
-with open(f"{output_file}/labels.json", "w") as f:
-    json.dump(labels, f)
 
 nbr_class = len(labels)
-
+print(f"N class {nbr_class}")
 
 if model_weights == None:
     i3d = InceptionI3d(400, in_channels=3)

@@ -9,6 +9,7 @@ import numpy as np
 import json
 import pickle
 import argparse
+import os
 
 from transforms.video_transforms import (
     ChangeVideoShape,
@@ -89,13 +90,21 @@ test = data[data["subset"] == "test"]
 
 print(len(data))
 
-train_dataset = LsfbDataset(train, transforms=composed_train)
+# Load labels if exists. If not create it
+if os.path.exists(f"{output_file}/labels.json"):
+    with open(f"{output_file}/labels.json", "r") as f:
+        labels = json.load(f)
 
-# Saving label mapping
-labels = train_dataset.labels
+    train_dataset = LsfbDataset(train, transforms=composed_train, labels=labels)
 
-with open(f"{output_file}/labels.json", "w") as f:
-    json.dump(labels, f)
+else:
+    train_dataset = LsfbDataset(train, transforms=composed_train)
+
+    # Saving label mapping
+    labels = train_dataset.labels
+
+    with open(f"{output_file}/labels.json", "w") as f:
+        json.dump(labels, f)
 
 test_dataset = LsfbDataset(test, transforms=compose_test, labels=labels)
 
