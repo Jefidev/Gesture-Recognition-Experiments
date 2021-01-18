@@ -1,6 +1,3 @@
-# Deepmind I3D ? : https://github.com/deepmind/kinetics-i3d
-# Original inspiration : https://www.cv-foundation.org/openaccess/content_iccv_2015/papers/Tran_Learning_Spatiotemporal_Features_ICCV_2015_paper.pdf
-# tuto : https://towardsdatascience.com/pytorch-step-by-step-implementation-3d-convolution-neural-network-8bf38c70e8b3
 # Get from : https://github.com/csuhuihui/pytorch-c3d
 
 import torch

@@ -311,7 +311,7 @@ def eval_i3d(dataloader, model, criterion, raw_pred_path):
     return eval_loss, eval_acc
 
 
-mlflow.set_experiment("I3D Expe 3 rgb kinetic")
+mlflow.set_experiment(experiment_name)
 
 with mlflow.start_run(run_name=experiment_name) as run:
     params_ml_flow["run_id"] = run.info.run_id
