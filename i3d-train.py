@@ -37,11 +37,10 @@ import mlflow
 import argparse
 
 
-init_lr = 0.5
+init_lr = 0.1
 max_steps = 100
 mode = "rgb_kinetic"
-batch_size = 6
-test_batch_size = 2
+batch_size = 3
 cumulation = 64  # accum gradient
 nbr_frames = 48
 
@@ -102,6 +101,8 @@ data = load_lsfb_dataset(input_file)
 train = data[data["subset"] == "train"]
 test = data[data["subset"] == "test"]
 
+print(train)
+
 # Load labels if exists. If not create it
 if os.path.exists(f"{output_file}/labels.json"):
     with open(f"{output_file}/labels.json", "r") as f:
@@ -135,7 +136,7 @@ dataloader = torch.utils.data.DataLoader(
 )
 
 val_dataloader = torch.utils.data.DataLoader(
-    test_dataset, batch_size=test_batch_size, shuffle=True, num_workers=nb_workers,
+    test_dataset, batch_size=batch_size, shuffle=True, num_workers=nb_workers,
 )
 
 dataloaders = {"train": dataloader, "val": val_dataloader}
@@ -362,7 +363,7 @@ with mlflow.start_run(run_name=experiment_name) as run:
                 )
 
                 tot_loss = tot_loss / size
-                accuracy = accuracy / (size * test_batch_size)
+                accuracy = accuracy / (size * batch_size)
 
                 print(
                     "{}  Loss: {:.4f}  Accuracy: {:.4f}".format(
