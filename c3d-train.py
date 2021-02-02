@@ -26,17 +26,6 @@ import json
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(device)
 
-path = "/home/jeromefink/Documents/unamur/signLanguage/Data/most_frequents_395"
-# path = "./mock-data"
-params = {
-    "batch_size": 2,
-    "max_frames": 48,
-    "epochs": 20,
-    "lr": 0.1,
-    "dataset": path.split("/")[-1],
-    "cumulation": 40,
-}
-
 # Parsing the args
 parser = argparse.ArgumentParser()
 parser.add_argument("-i", "--input", help="Path to the input video directory")
@@ -51,6 +40,16 @@ output_file = args.output
 experiment_name = args.name
 model_weights = args.load
 nb_workers = args.workers
+
+# path = "./mock-data"
+params = {
+    "batch_size": 2,
+    "max_frames": 48,
+    "epochs": 20,
+    "lr": 0.1,
+    "dataset": input_file.split("/")[-1],
+    "cumulation": 40,
+}
 
 
 ## Loading data and setup the batch loader
