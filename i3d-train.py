@@ -40,8 +40,8 @@ import argparse
 init_lr = 0.1
 max_steps = 100
 mode = "rgb_kinetic"
-batch_size = 3
-cumulation = 64  # accum gradient
+batch_size = 15
+cumulation = 5  # accum gradient
 nbr_frames = 48
 
 
