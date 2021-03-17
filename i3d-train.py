@@ -30,7 +30,7 @@ from torchvision import datasets, transforms
 
 
 import numpy as np
-from models.pytorch_i3d import InceptionI3d
+from models.pytorch_i3d_checkpointed import InceptionI3d
 from utils.lsfb_dataset_loader import load_lsfb_dataset
 from datasets.lsfb_dataset import LsfbDataset
 import mlflow
@@ -147,7 +147,7 @@ nbr_class = len(labels)
 print(f"N class {nbr_class}")
 
 if model_weights == None:
-    i3d = InceptionI3d(400, in_channels=3)
+    i3d = InceptionI3d(1024, in_channels=3)
     i3d.load_state_dict(torch.load(kinetic_path))
     i3d.replace_logits(nbr_class)
     print("RGB kinetic loaded")
